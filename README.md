@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+- some info displays on home when signed out
+- sign in (clerk) to see some other info on home
+- /profile displays user name and email address
+- /posts does not work
+- have not imported ProfileForm on home (below)
 
-## Getting Started
+  import {
+  ClerkProvider,
+  SignInButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import "./globals.css";
+import { db } from "@/lib/db";
+import ProfileForm from "./components/ProfileForm";
 
-First, run the development server:
+export default async function RootLayout({ children }) {
+  // Get the userId from auth() -- if null, the user is not signed in
+  const { userId } = auth(); // user_98sddfiusdfi7syf  or null
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+  const profiles = await db.query(
+    `SELECT * FROM profiles WHERE clerk_id = '${userId}'`
+  );
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+  // if the user is logged in AND they don't have an entry in the profiles table, add it
+  if (profiles.rowCount === 0 && userId !== null) {
+    // add them to our database
+    await db.query(`INSERT INTO profiles (clerk_id) VALUES ('${userId}')`);
+  }
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+  // has username will be true if we have a username and (shockingly) false if we don't
+  const hasUsername = profiles.rows[0]?.username !== null ? true : false;
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+  return (
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <header>
+            <SignedOut>
+              <SignInButton />
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </header>
+          <main>
+            <SignedOut>{children}</SignedOut>
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+            <SignedIn>
+              {hasUsername && children}
+              {!hasUsername && <ProfileForm />}
+            </SignedIn>
+          </main>
+        </body>
+      </html>
+    </ClerkProvider>
+  );
+}
