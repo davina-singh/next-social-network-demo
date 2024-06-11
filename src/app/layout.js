@@ -5,7 +5,11 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+// import { auth } from "@clerk/nextjs/server";
 import "./globals.css";
+// import { db } from "@/lib/db";
+
+import ProfileForm from "./components/ProfileForm";
 
 export default function RootLayout({ children }) {
   return (
